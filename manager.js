@@ -1,5 +1,9 @@
 'use strict';
 
+var _slicedToArray = function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i["return"]) _i["return"](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError("Invalid attempt to destructure non-iterable instance"); } }; }();
+
+function _toConsumableArray(arr) { if (Array.isArray(arr)) { for (var i = 0, arr2 = Array(arr.length); i < arr.length; i++) { arr2[i] = arr[i]; } return arr2; } else { return Array.from(arr); } }
+
 /*jshint
     esversion: 6,
     undef: true,
@@ -13,255 +17,299 @@
 
 var biblio_lists = MessageBotExtension('biblio_lists');
 
-(function () {
-    var _this = this;
-
-    //Start with empty lists
-    this.lists = {
-        admins: '',
-        modlist: '',
-        whitelist: '',
-        blacklist: ''
+(function (ex, ui, api) {
+    ex.setAutoLaunch(true);
+    ex.uninstall = function () {
+        //Remove all our tabs
+        ui.removeTabGroup('biblio_lists');
     };
-    this.worlds = [];
 
-    //Functions
-    {
-        this.getStatus = function (ids) {
-            return Promise.all(ids.map(function (id) {
-                return _this.core.ajax.postJSON('http://portal.theblockheads.net/api', { command: 'status', worldId: id });
-            }));
-        };
+    ui.addTabGroup('Lists', 'biblio_lists');
+    var tab = {
+        admin: ui.addTab('Adminlist', 'biblio_lists'),
+        mod: ui.addTab('Modlist', 'biblio_lists'),
+        white: ui.addTab('Whitelist', 'biblio_lists'),
+        black: ui.addTab('Blacklist', 'biblio_lists')
+    };
+    Object.keys(tab).forEach(function (key) {
+        tab[key].dataset.listName = key;
+    });
 
-        this.ensureOnline = function (id) {
-            _this.core.ajax.postJSON('/api', { command: 'start', worldId: id });
+    //Used to save lists between steps
+    ex.lists = {
+        admin: '',
+        mod: '',
+        white: '',
+        black: ''
+    };
 
-            return new Promise(function (resolve, reject) {
-                var tries = 0;
-                (function waitForStart(ext) {
-                    ext.core.ajax.postJSON('/api', { command: 'status', worldId: id }).then(function (world) {
-                        if (world.worldStatus == 'online') {
-                            return resolve();
-                        } else {
-                            if (tries++ < 12) {
-                                setTimeout(waitForStart, 5000, ext);
-                            } else {
-                                return reject();
-                            }
-                        }
-                    });
-                })(_this);
+    function setTabHTML(name, html) {
+        name = name.toLocaleLowerCase();
+
+        if (name == 'all') {
+            Object.keys(tab).forEach(function (key) {
+                tab[key].innerHTML = html;
             });
-        };
-
-        this.unique = function (arr) {
-            var seen = new Set();
-            return arr.filter(function (item) {
-                if (!seen.has(item.toLocaleUpperCase())) {
-                    seen.add(item.toLocaleUpperCase());
-                    return true;
-                }
-            });
-        };
-
-        //Steps
-        this.stepOne = function (e) {
-            var page = e.target.parentElement;
-
-            _this.core.ajax.get('/worlds').then(function (resp) {
-                var doc = new DOMParser().parseFromString(resp, 'text/html');
-                _this.worlds = [];
-
-                doc.body.querySelector('script').textContent.split('\n').forEach(function (line) {
-                    if (line.startsWith('\t\t\tupdateWorld')) {
-                        var needed = line.substring(15, line.length - 1).replace(/(['"])?(\w+)(['"])?: (')?(.*?)(')?([,}])/gi, '"$2": "$5"$7');
-
-                        _this.worlds.push(JSON.parse(needed));
-                    }
-                });
-
-                return _this.worlds;
-            }).then(function (worlds) {
-                void 0;
-
-                page.innerHTML = worlds.reduce(function (html, world) {
-                    return html + '<label><input type="checkbox" value="' + world.id + '"/>' + _this.bot.stripHTML(world.name) + ' (' + world.worldStatus + ')</label><br>';
-                }, '<h3>Step 1: Choose the worlds you want to combine lists from.</h3><div class="worlds">') + '</div>\n                    <hr>Settings:<br>\n                    <div class="settings">\n                        <label><input type="checkbox" name="alphabeta"/>Sort created list alphabetically</label><br>\n                        <label><input type="checkbox" name="duplicates" checked/>Remove duplicates (case insensitive)</label><br>\n                    </div><br>\n                    <a class="button">Continue</a>';
-
-                page.querySelector('a').addEventListener('click', _this.stepTwo);
-            });
-        };
-
-        this.stepTwo = function (e) {
-            var page = e.target.parentElement;
-            var listname = page.id.replace('mb_' + _this.id + '_', '');
-            var settings = {
-                sort: page.querySelector('[name="alphabeta"]').checked,
-                remove_duplicates: page.querySelector('[name="duplicates"]').checked
-            };
-
-            var ids = Array.from(page.querySelectorAll('.worlds input')).reduce(function (ids, input) {
-                if (input.checked) {
-                    ids.push(input.value);
-                }
-                return ids;
-            }, []);
-
-            if (ids.length < 2) {
-                _this.ui.notify('Please select at least two worlds.');
-                return;
-            }
-
-            page.innerHTML = 'Starting worlds...';
-            void 0;
-
-            Promise.all(ids.map(function (id) {
-                return _this.core.ajax.postJSON('/api', { command: 'start', worldId: id });
-            })).then(function () {
-                return new Promise(function (resolve, reject) {
-                    var tries = 0;
-                    (function waitForWorlds(ext) {
-                        ext.getStatus(ids).then(function (worlds) {
-                            if (worlds.every(function (world) {
-                                return world.worldStatus == 'online';
-                            })) {
-                                return resolve();
-                            } else {
-                                if (tries++ < 12) {
-                                    page.innerHTML = worlds.reduce(function (html, world) {
-                                        return html + '<span>' + ext.bot.stripHTML(world.name) + ' (' + world.worldStatus.replace('startup', 'starting') + ')</span><br>';
-                                    }, '<span>Starting worlds...</span><br>');
-                                    setTimeout(waitForWorlds, 5000, ext);
-                                } else {
-                                    page.innerHTML = '<span style="color:#f00;">Unable to start all worlds in time.</span>';
-                                    return reject();
-                                }
-                            }
-                        });
-                    })(_this);
-                });
-            }).then(function () {
-                page.innerHTML = 'All worlds online! Fetching lists...';
-                void 0;
-
-                return Promise.all(ids.map(function (id) {
-                    return _this.core.ajax.get('/worlds/lists/' + id).then(function (resp) {
-                        var doc = new DOMParser().parseFromString(resp, 'text/html');
-                        var name = listname == 'adminlist' ? 'admins' : listname;
-                        return doc.querySelector('[name="' + name + '"]').value.split('\n');
-                    });
-                }));
-            }).then(function (lists) {
-                void 0;
-
-                var superlist = [];
-                lists.forEach(function (list) {
-                    superlist = superlist.concat(list);
-                });
-
-                if (settings.sort) {
-                    superlist.sort(function (a, b) {
-                        return a.toLowerCase().localeCompare(b.toLowerCase());
-                    });
-                }
-                if (settings.remove_duplicates) {
-                    superlist = _this.unique(superlist);
-                }
-
-                page.innerHTML = '<h3>Step 2: Edit this list as desired.</h3><textarea style="width:100%;height:60vh;">' + _this.bot.stripHTML(superlist.join('\n')) + '</textarea><a class="button">Continue</a>';
-
-                page.querySelector('a').addEventListener('click', _this.stepThree);
-            });
-        };
-
-        this.stepThree = function (e) {
-            void 0;
-
-            var page = e.target.parentElement;
-            var listname = page.id.replace('mb_' + _this.id + '_', '').replace('adminlist', 'admins');
-            _this.lists[listname] = page.querySelector('textarea').value;
-
-            page.innerHTML = _this.worlds.reduce(function (html, world) {
-                return html + '<label><input type="checkbox" value="' + world.id + '"/>' + _this.bot.stripHTML(world.name) + '</label><br>';
-            }, '<h3>Step 3: Choose which worlds to push this list to.</h3><div class="worlds">') + '</div>\n            <hr>Mode:<br><div class="mode">\n                <label><input type="radio" name="mode" value="overwrite" checked/>Overwrite</label><br>\n                <label><input type="radio" name="mode" value="append"/>Append</label><br>\n            </div><a class="button">Update lists</a>';
-
-            page.querySelector('a').addEventListener('click', _this.stepFour);
-        };
-
-        this.stepFour = function (e) {
-            void 0;
-
-            var page = e.target.parentElement;
-            var listname = page.id.replace('mb_' + _this.id + '_', '').replace('adminlist', 'admins');
-            var mode = Array.from(page.querySelectorAll('[type="radio"]')).reduce(function (p, c) {
-                return c.checked ? c.value : p;
-            }, '');
-
-            var ids = Array.from(page.querySelectorAll('.worlds input')).reduce(function (ids, input) {
-                if (input.checked) {
-                    ids.push(input.value);
-                }
-                return ids;
-            }, []);
-
-            page.innerHTML = 'Saving lists...<br>';
-
-            var setCounter = 0;
-            ids.forEach(function (id) {
-                _this.ensureOnline(id).then(function () {
-                    return _this.core.ajax.get('/worlds/lists/' + id);
-                }).then(function (resp) {
-                    var doc = new DOMParser().parseFromString(resp, 'text/html');
-                    var lists = {
-                        admins: doc.querySelector('[name="admins"]').value,
-                        modlist: doc.querySelector('[name="modlist"]').value,
-                        whitelist: doc.querySelector('[name="whitelist"]').value,
-                        blacklist: doc.querySelector('[name="blacklist"]').value
-                    };
-
-                    switch (mode) {
-                        case 'overwrite':
-                            lists[listname] = _this.lists[listname];
-                            break;
-                        case 'append':
-                            lists[listname] = lists[listname] + '\n' + _this.lists[listname];
-                            break;
-                    }
-
-                    return _this.core.ajax.postJSON('/worlds/lists/' + id, lists);
-                }).then(function (data) {
-                    if (data.status == 'ok') {
-                        return _this.getStatus([id]).then(function (worlds) {
-                            page.innerHTML += 'Updated ' + _this.bot.stripHTML(worlds[0].name) + '\'s lists.<br>';
-                        });
-                    } else {
-                        return _this.getStatus([id]).then(function (worlds) {
-                            page.innerHTML += 'Error updating ' + _this.bot.stripHTML(worlds[0].name) + '\'s lists.<br>';
-                        });
-                    }
-                }).then(function () {
-                    setCounter++;
-                    if (setCounter == ids.length) {
-                        page.innerHTML += '<a class="button">Select new lists</a>';
-                        page.querySelector('a').addEventListener('click', _this.stepOne);
-                    }
-                });
-            });
-        };
+        } else {
+            tab[name].innerHTML = html;
+        }
     }
 
-    this.setAutoLaunch(true);
+    function setTabListener(name, selector, type, listener) {
+        name = name.toLocaleLowerCase();
 
-    //Setup...
-    this.addTabGroup('LISTS', 'lists');
-    this.addTab('Adminlist', 'adminlist', 'biblio_lists_lists');
-    this.addTab('Modlist', 'modlist', 'biblio_lists_lists');
-    this.addTab('Whitelist', 'whitelist', 'biblio_lists_lists');
-    this.addTab('Blacklist', 'blacklist', 'biblio_lists_lists');
+        if (name == 'all') {
+            Object.keys(tab).forEach(function (key) {
+                tab[key].querySelector(selector).addEventListener(type, listener);
+            });
+        } else {
+            tab[name].querySelector(selector).addEventListener(type, listener);
+        }
+    }
 
-    ['adminlist', 'modlist', 'whitelist', 'blacklist'].forEach(function (list) {
-        var page = document.querySelector('#mb_' + _this.id + '_' + list);
-        page.innerHTML = 'Loading...';
-        _this.stepOne({ target: { parentElement: page } });
-    });
-}).bind(biblio_lists)();
+    function unique(arr) {
+        var seen = new Set();
+        return arr.filter(function (item) {
+            if (!seen.has(item.toLocaleUpperCase())) {
+                seen.add(item.toLocaleUpperCase());
+                return true;
+            }
+        });
+    }
+
+    function stripHTML(html) {
+        return html.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&apos;').replace(/"/g, '&quot;');
+    }
+
+    //Let the user know we are waiting.
+    setTabHTML('all', 'Loading...');
+    showWorlds('all');
+
+    //Load the worlds
+    function showWorlds(tabName) {
+        api.getWorlds().then(function (worlds) {
+            void 0;
+
+            var html = worlds.reduce(function (html, world) {
+                return html + '<label><input type="checkbox" value="' + world.id + '"/>' + stripHTML(world.name) + ' (' + world.worldStatus + ')</label><br>';
+            }, '<h3>Step 1: Choose the worlds you want to combine lists from.</h3><div class="worlds">');
+            html += '</div>\n                <hr>Settings:<br>\n                <div class="settings">\n                    <label><input type="checkbox" name="alphabeta"/>Sort created list alphabetically</label><br>\n                    <label><input type="checkbox" name="duplicates" checked/>Remove duplicates (case insensitive)</label><br>\n                </div><br>\n                <a class="button">Continue</a>';
+
+            setTabHTML(tabName, html);
+            setTabListener(tabName, 'a', 'click', getWorldLists);
+        });
+    }
+
+    function getWorldLists(event) {
+        var content = event.target.parentElement;
+        var listName = content.dataset.listName;
+        var settings = {
+            sort: content.querySelector('[name="alphabeta"]').checked,
+            remove_duplicates: content.querySelector('[name="duplicates"]').checked
+        };
+
+        var ids = Array.from(content.querySelectorAll('.worlds input:checked')).reduce(function (ids, input) {
+            ids.push(input.value);
+            return ids;
+        }, []);
+
+        if (ids.length < 2) {
+            ex.ui.notify('Please select at least two worlds.');
+            return;
+        }
+
+        content.innerHTML = 'Starting worlds and getting lists...';
+
+        Promise.all(ids.map(function (id) {
+            return api.getLists(id);
+        })).then(function (lists) {
+            return lists.reduce(function (superlist, worldLists) {
+                return superlist.concat(worldLists[listName]);
+            }, []);
+        }).then(function (superlist) {
+            if (settings.sort) {
+                superlist.sort(function (a, b) {
+                    return a.toLowerCase().localeCompare(b.toLowerCase());
+                });
+            }
+            if (settings.remove_duplicates) {
+                superlist = unique(superlist);
+            }
+            return superlist;
+        }).then(function (superlist) {
+            content.innerHTML = '<h3>Step 2: Edit this list as desired.</h3><textarea style="width:100%;height:60vh;">' + stripHTML(superlist.join('\n')) + '</textarea><a class="button">Continue</a>';
+
+            content.querySelector('a').addEventListener('click', choosePushWorlds);
+        });
+    }
+
+    function choosePushWorlds(event) {
+        var content = event.target.parentElement;
+        var listName = content.dataset.listName;
+
+        ex.lists[listName] = content.querySelector('textarea').value;
+
+        api.getWorlds().then(function (worlds) {
+            content.innerHTML = worlds.reduce(function (html, world) {
+                return html + '<label><input type="checkbox" value="' + world.id + '"/>' + stripHTML(world.name) + '</label><br>';
+            }, '<h3>Step 3: Choose which worlds to push this list to.</h3><div class="worlds">') + '</div>\n            <hr>Mode:<br><div class="mode">\n                <label><input type="radio" name="mode" value="overwrite" checked/>Overwrite</label><br>\n                <label><input type="radio" name="mode" value="append"/>Append</label><br>\n            </div><a class="button">Update lists</a>';
+
+            content.querySelector('a').addEventListener('click', saveLists);
+        });
+    }
+
+    function saveLists(event) {
+        var content = event.target.parentElement;
+        var listName = content.dataset.listName;
+
+        var mode = content.querySelector('[type=radio]:checked').value;
+
+        var ids = Array.from(content.querySelectorAll('.worlds input:checked')).reduce(function (ids, input) {
+            ids.push(input.value);
+            return ids;
+        }, []);
+
+        content.innerHTML = 'Saving lists...<br>';
+
+        Promise.all(ids.map(function (id) {
+            return api.getLists(id).then(function (lists) {
+                void 0;
+                var sendLists = {
+                    admins: lists.admin.join('\n'),
+                    modlist: lists.mod.join('\n'),
+                    whitelist: lists.white.join('\n'),
+                    blacklist: lists.black.join('\n')
+                };
+
+                var translatedListName;
+                switch (listName) {
+                    case 'admin':
+                        translatedListName = 'admins';
+                        break;
+                    case 'mod':
+                        translatedListName = 'modlist';
+                        break;
+                    case 'black':
+                        translatedListName = 'blacklist';
+                        break;
+                    case 'white':
+                        translatedListName = 'whitelist';
+                }
+
+                switch (mode) {
+                    case 'overwrite':
+                        sendLists[translatedListName] = ex.lists[listName];
+                        break;
+                    case 'append':
+                        sendLists[translatedListName] += '\n' + ex.lists[listName];
+                        break;
+                }
+
+                return ex.ajax.postJSON('/worlds/lists/' + lists.id, sendLists).then(function (result) {
+                    return [result, lists.id];
+                });
+            }).then(function (data) {
+                var _data = _slicedToArray(data, 2);
+
+                var response = _data[0];
+                var id = _data[1];
+
+                void 0;
+                var result = response.status == 'ok' ? 'Success' : 'Failed';
+                return api.getWorlds().then(function (worlds) {
+                    worlds.forEach(function (world) {
+                        if (id == world.id) {
+                            content.innerHTML += stripHTML(world.name) + ': ' + result + '<br>';
+                        }
+                    });
+                });
+            });
+        })).then(function () {
+            //All done!
+            content.innerHTML += '<a class="button">Select new lists</a>';
+            content.querySelector('a').addEventListener('click', function () {
+                return showWorlds(listName);
+            });
+        });
+    }
+})(biblio_lists, biblio_lists.ui, function (ajax) {
+    //Api
+    var cache = {};
+
+    var api = {};
+
+    api.ensureOnline = function (id) {
+        ajax.postJSON('/api', { command: 'start', worldId: id });
+
+        return new Promise(function (resolve, reject) {
+            var tries = 0;
+            (function waitForStart() {
+                ajax.postJSON('/api', { command: 'status', worldId: id }).then(function (world) {
+                    if (world.worldStatus == 'online') {
+                        return resolve();
+                    } else {
+                        if (tries++ < 12) {
+                            setTimeout(waitForStart, 5000);
+                        } else {
+                            return reject();
+                        }
+                    }
+                });
+            })();
+        });
+    };
+
+    api.getStatus = function (id) {
+        return ajax.postJSON('/api', { command: 'status', worldId: id });
+    };
+
+    api.getLists = function (id) {
+        return api.ensureOnline(id).then(function () {
+            return ajax.get('/worlds/lists/' + id);
+        }).then(function (html) {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+
+            function getList(name) {
+                var list = doc.querySelector('textarea[name=' + name + ']').value.toLocaleUpperCase().split('\n');
+                return [].concat(_toConsumableArray(new Set(list))); //Remove duplicates
+            }
+
+            var admin = getList('admins');
+            var mod = getList('modlist');
+            mod = mod.filter(function (name) {
+                return admin.indexOf(name) < 0;
+            });
+            var staff = admin.concat(mod);
+
+            var white = getList('whitelist');
+            var black = getList('blacklist');
+
+            return { admin: admin, mod: mod, staff: staff, white: white, black: black, id: id };
+        });
+    };
+
+    api.getWorlds = function () {
+        if (cache.getWorlds) {
+            return cache.getWorlds;
+        }
+
+        cache.getWorlds = ajax.get('/worlds').then(function (resp) {
+            var doc = new DOMParser().parseFromString(resp, 'text/html');
+            var worlds = [];
+
+            doc.body.querySelector('script').textContent.split('\n').forEach(function (line) {
+                if (line.startsWith('\t\t\tupdateWorld')) {
+                    var needed = line.substring(15, line.length - 1).replace(/(['"])?(\w+)(['"])?: (')?(.*?)(')?([,}])/gi, '"$2": "$5"$7');
+
+                    worlds.push(JSON.parse(needed));
+                }
+            });
+
+            return worlds;
+        });
+
+        return cache.getWorlds;
+    };
+
+    return api;
+}(biblio_lists.ajax));
