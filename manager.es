@@ -90,13 +90,13 @@ let biblio_lists = MessageBotExtension('biblio_lists');
             console.log('Worlds fetched...', worlds);
 
             var html = worlds.reduce((html, world) => {
-                return `${html}<label><input type="checkbox" value="${world.id}"/>${stripHTML(world.name)} (${world.worldStatus})</label><br>`;
-            }, '<h3>Step 1: Choose the worlds you want to combine lists from.</h3><div class="worlds">');
+                return `${html}<label><input type="checkbox" class="checkbox" value="${world.id}"/>${stripHTML(world.name)} (${world.worldStatus})</label><br>`;
+            }, '<h3 class="title">Step 1: Choose the worlds you want to combine lists from.</h3><div class="worlds">');
             html += `</div>
                 <hr>Settings:<br>
                 <div class="settings">
-                    <label><input type="checkbox" name="alphabeta"/>Sort created list alphabetically</label><br>
-                    <label><input type="checkbox" name="duplicates" checked/>Remove duplicates (case insensitive)</label><br>
+                    <label><input type="checkbox" class="checkbox" name="alphabeta"/>Sort created list alphabetically</label><br>
+                    <label><input type="checkbox" class="checkbox" name="duplicates" checked/>Remove duplicates (case insensitive)</label><br>
                 </div><br>
                 <a class="button">Continue</a>`;
 
@@ -140,7 +140,7 @@ let biblio_lists = MessageBotExtension('biblio_lists');
             }
             return superlist;
         }).then(superlist => {
-            content.innerHTML = `<h3>Step 2: Edit this list as desired.</h3><textarea style="width:100%;height:60vh;">${stripHTML(superlist.join('\n'))}</textarea><a class="button">Continue</a>`;
+            content.innerHTML = `<h3 class="title">Step 2: Edit this list as desired.</h3><textarea style="width:100%;height:60vh;">${stripHTML(superlist.join('\n'))}</textarea><a class="button">Continue</a>`;
 
             content.querySelector('a').addEventListener('click', choosePushWorlds);
         });
@@ -154,12 +154,12 @@ let biblio_lists = MessageBotExtension('biblio_lists');
 
         api.getWorlds().then(worlds => {
             content.innerHTML = worlds.reduce((html, world) => {
-                return `${html}<label><input type="checkbox" value="${world.id}"/>${stripHTML(world.name)}</label><br>`;
-            }, '<h3>Step 3: Choose which worlds to push this list to.</h3><div class="worlds">') +
+                return `${html}<label><input type="checkbox" class="checkbox" value="${world.id}"/>${stripHTML(world.name)}</label><br>`;
+            }, '<h3 class="title">Step 3: Choose which worlds to push this list to.</h3><div class="worlds">') +
             `</div>
             <hr>Mode:<br><div class="mode">
-                <label><input type="radio" name="mode" value="overwrite" checked/>Overwrite</label><br>
-                <label><input type="radio" name="mode" value="append"/>Append</label><br>
+                <label><input class="radio" type="radio" name="mode" value="overwrite" checked/>Overwrite</label><br>
+                <label><input class="radio" type="radio" name="mode" value="append"/>Append</label><br>
             </div><a class="button">Update lists</a>`;
 
             content.querySelector('a').addEventListener('click', saveLists);
