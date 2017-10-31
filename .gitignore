@@ -1,8 +1,2 @@
-#Node
 node_modules
-
-#System files
-.DS_Store
-
-#IDE
-.tags
+.rpt2_cache
