@@ -41,11 +41,11 @@ function __awaiter(thisArg, _arguments, P, generator) {
     });
 }
 
-var step1Html = "<template>\r\n  <label>\r\n    <input type=\"checkbox\" data-for=\"worldId\"/>\r\n    <span data-for=\"worldName\"></span>\r\n  </label>\r\n  <br>\r\n</template>\r\n\r\n<div class=\"worlds\"></div>\r\n<hr>Settings:\r\n<br>\r\n<div class=\"settings\">\r\n  <label>\r\n    <input type=\"checkbox\" class=\"checkbox\" name=\"alphabeta\" />Sort created list alphabetically</label>\r\n  <br>\r\n  <label>\r\n    <input type=\"checkbox\" class=\"checkbox\" name=\"duplicates\" checked/>Remove duplicates (case insensitive)</label>\r\n  <br>\r\n</div>\r\n<br>\r\n<a class=\"button\">Continue</a>";
+var step1Html = "<template>\r\n  <label>\r\n    <input type=\"checkbox\" data-for=\"worldId\"/>\r\n    <span data-for=\"worldName\"></span>\r\n  </label>\r\n  <br>\r\n</template>\r\n\r\n<div class=\"container is-fluid\">\r\n  <div class=\"worlds\"></div>\r\n  <hr>\r\n  Settings:\r\n  <br>\r\n  <div class=\"settings\">\r\n    <label>\r\n      <input type=\"checkbox\" class=\"checkbox\" name=\"alphabeta\" />Sort created list alphabetically</label>\r\n    <br>\r\n    <label>\r\n      <input type=\"checkbox\" class=\"checkbox\" name=\"duplicates\" checked/>Remove duplicates (case insensitive)</label>\r\n    <br>\r\n  </div>\r\n  <br>\r\n  <a class=\"button\">Continue</a>\r\n</div>";
 
-var step2Html = "<h3 class=\"title\">Step 2: Edit this list as desired.</h3>\r\n<textarea style=\"width:100%;height:60vh;\"></textarea>\r\n<a class=\"button\">Continue</a>";
+var step2Html = "<div class=\"container is-fluid\">\r\n  <h3 class=\"title\">Step 2: Edit this list as desired.</h3>\r\n  <textarea style=\"width:100%;height:60vh;\"></textarea>\r\n  <a class=\"button\">Continue</a>\r\n</div>";
 
-var step3Html = "<template>\r\n  <label>\r\n    <input type=\"checkbox\" class=\"checkbox\" />\r\n  </label>\r\n  <br>\r\n</template>\r\n\r\n<h3 class=\"title\">Step 3: Choose which worlds to push this list to.</h3>\r\n<div class=\"worlds\">\r\n</div>\r\n<hr>Mode:\r\n<br>\r\n<div class=\"mode\">\r\n  <label>\r\n    <input class=\"radio\" type=\"radio\" name=\"mode\" value=\"overwrite\" checked/>Overwrite</label>\r\n  <br>\r\n  <label>\r\n    <input class=\"radio\" type=\"radio\" name=\"mode\" value=\"append\" />Append</label>\r\n  <br>\r\n</div>\r\n<a class=\"button\">Update lists</a>";
+var step3Html = "<template>\r\n  <label>\r\n    <input type=\"checkbox\" class=\"checkbox\" />\r\n  </label>\r\n  <br>\r\n</template>\r\n\r\n<div class=\"container is-fluid\">\r\n  <h3 class=\"title\">Step 3: Choose which worlds to push this list to.</h3>\r\n  <div class=\"worlds\">\r\n  </div>\r\n  <hr>Mode:\r\n  <br>\r\n  <div class=\"mode\">\r\n    <label>\r\n      <input class=\"radio\" type=\"radio\" name=\"mode\" value=\"overwrite\" checked/>Overwrite</label>\r\n    <br>\r\n    <label>\r\n      <input class=\"radio\" type=\"radio\" name=\"mode\" value=\"append\" />Append</label>\r\n    <br>\r\n  </div>\r\n  <a class=\"button\">Update lists</a>\r\n</div>";
 
 const pluck = (arr, key) => arr.map(item => item[key]);
 const flatten = (arr) => arr.reduce((carry, item) => carry.concat(item), []);
@@ -106,7 +106,7 @@ function showWorlds(tab, ui) {
         worlds.forEach(world => {
             ui.buildTemplate(template, worldsDiv, [
                 { selector: '[data-for=worldId]', value: world.id },
-                { selector: '[data-for=worldName]', value: world.name }
+                { selector: '[data-for=worldName]', text: world.name }
             ]);
         });
         return new Promise(resolve => {
@@ -146,7 +146,7 @@ function choosePushWorlds(tab, ui) {
         worlds.forEach(world => {
             ui.buildTemplate(template, worldsDiv, [
                 { selector: '[data-for=worldId]', value: world.id },
-                { selector: '[data-for=worldName]', value: world.name }
+                { selector: '[data-for=worldName]', text: world.name }
             ]);
         });
         return new Promise(resolve => {

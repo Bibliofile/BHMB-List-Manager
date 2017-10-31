@@ -76,7 +76,7 @@ async function showWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Promise<
   worlds.forEach(world => {
     ui.buildTemplate(template, worldsDiv, [
       { selector: '[data-for=worldId]', value: world.id },
-      { selector: '[data-for=worldName]', value: world.name }
+      { selector: '[data-for=worldName]', text: world.name }
     ])
   })
 
@@ -120,7 +120,7 @@ async function choosePushWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Pr
   worlds.forEach(world => {
     ui.buildTemplate(template, worldsDiv, [
       { selector: '[data-for=worldId]', value: world.id },
-      { selector: '[data-for=worldName]', value: world.name }
+      { selector: '[data-for=worldName]', text: world.name }
     ])
   })
 
