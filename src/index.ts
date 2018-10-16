@@ -1,6 +1,6 @@
 import { MessageBot } from '@bhmb/bot'
 import { UIExtensionExports } from '@bhmb/ui'
-import { WorldInfo, WorldLists } from 'blockheads-api/api'
+import { WorldInfo, WorldLists } from 'blockheads-api-interface'
 
 import step1Html from './step1.html'
 import step2Html from './step2.html'
@@ -19,9 +19,9 @@ const pluck = <T, K extends keyof T>(arr: T[], key: K): Array<T[K]> => arr.map(i
 const flatten = <T>(arr: T[][]): T[] => arr.reduce((carry, item) => carry.concat(item), [])
 
 async function getWorldLists(world: WorldInfo) {
-  let api = new MessageBot.dependencies.Api(world)
+  const api = new MessageBot.dependencies.Api(world)
   let overview = await api.getOverview()
-  while ((overview as any).status != 'online') {
+  while (overview.status !== 'online') {
     await api.start()
     overview = await api.getOverview()
   }
@@ -29,22 +29,16 @@ async function getWorldLists(world: WorldInfo) {
 }
 
 function unique(arr: string[]) {
-  let seen = new Set()
-  return arr.filter((item) => {
-    if (!seen.has(item.toLocaleUpperCase())) {
-      seen.add(item.toLocaleUpperCase())
-      return true
-    }
-  })
+  return [...new Set(arr)]
 }
 
 async function createUI(list: keyof WorldLists, tab: HTMLDivElement, ui: UIExtensionExports) {
   // Show worlds
-  let { worlds, settings } = await showWorlds(tab, ui)
+  const { worlds, settings } = await showWorlds(tab, ui)
 
   // Get the lists and modify as required
   ui.notify('Getting lists')
-  let lists = await Promise.all(worlds.map(getWorldLists))
+  const lists = await Promise.all(worlds.map(getWorldLists))
   let superList = flatten(pluck(lists, list))
   if (settings.alphabetical) superList.sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()))
   if (settings.removeDuplicates) superList = unique(superList)
@@ -53,11 +47,11 @@ async function createUI(list: keyof WorldLists, tab: HTMLDivElement, ui: UIExten
   superList = await displayList(tab, superList)
 
   // Choose which worlds to push the new list to
-  let { worlds: pushWorlds, settings: pushSettings } = await choosePushWorlds(tab, ui)
+  const { worlds: pushWorlds, settings: pushSettings } = await choosePushWorlds(tab, ui)
   ui.notify('Pushing lists...')
-  let requests = pushWorlds.map(async world => {
-    let api = new MessageBot.dependencies.Api(world)
-    let lists = await getWorldLists(world)
+  const requests = pushWorlds.map(async world => {
+    const api = new MessageBot.dependencies.Api(world)
+    const lists = await getWorldLists(world)
     pushSettings.mode == 'overwrite' ? lists[list] = superList : lists[list].push(...superList)
     await api.setLists(lists)
   })
@@ -69,10 +63,10 @@ async function createUI(list: keyof WorldLists, tab: HTMLDivElement, ui: UIExten
 // Todo: Extract the common functionality in showWorlds / choosePushWorlds into a helper function
 
 async function showWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Promise<{worlds: WorldInfo[], settings: SortSettings}> {
-  let worlds = await MessageBot.dependencies.getWorlds()
+  const worlds = await MessageBot.dependencies.getWorlds()
   tab.innerHTML = step1Html
-  let worldsDiv = tab.querySelector('.worlds') as HTMLDivElement
-  let template = tab.querySelector('template') as HTMLTemplateElement
+  const worldsDiv = tab.querySelector('.worlds') as HTMLDivElement
+  const template = tab.querySelector('template') as HTMLTemplateElement
   worlds.forEach(world => {
     ui.buildTemplate(template, worldsDiv, [
       { selector: '[data-for=worldId]', value: world.id },
@@ -81,9 +75,9 @@ async function showWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Promise<
   })
 
   return new Promise <{ worlds: WorldInfo[], settings: SortSettings }>(resolve => {
-    let button = tab.querySelector('.button') as HTMLElement
+    const button = tab.querySelector('.button') as HTMLElement
     button.addEventListener('click', () => {
-      let ids = Array.from(worldsDiv.querySelectorAll('input'))
+      const ids = Array.from(worldsDiv.querySelectorAll('input'))
         .filter(input => input.checked)
         .map(input => input.value)
 
@@ -92,7 +86,7 @@ async function showWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Promise<
         return
       }
 
-      let settings: SortSettings = {
+      const settings: SortSettings = {
         alphabetical: (tab.querySelector('[name=alphabeta]') as HTMLInputElement).checked,
         removeDuplicates: (tab.querySelector('[name=duplicates]') as HTMLInputElement).checked,
       }
@@ -104,8 +98,8 @@ async function showWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Promise<
 
 function displayList(tab: HTMLDivElement, list: string[]): Promise<string[]> {
   tab.innerHTML = step2Html
-  let textarea = tab.querySelector('textarea') as HTMLTextAreaElement
-  let button = tab.querySelector('.button') as HTMLElement
+  const textarea = tab.querySelector('textarea') as HTMLTextAreaElement
+  const button = tab.querySelector('.button') as HTMLElement
   textarea.textContent = list.join('\n')
   return new Promise<string[]>(resolve => {
     button.addEventListener('click', () => resolve(textarea.value.split(/\r?\n/)))
@@ -114,9 +108,9 @@ function displayList(tab: HTMLDivElement, list: string[]): Promise<string[]> {
 
 async function choosePushWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Promise<{worlds: WorldInfo[], settings: PushSettings }> {
   tab.innerHTML = step3Html
-  let worlds = await MessageBot.dependencies.getWorlds()
-  let worldsDiv = tab.querySelector('.worlds') as HTMLDivElement
-  let template = tab.querySelector('template') as HTMLTemplateElement
+  const worlds = await MessageBot.dependencies.getWorlds()
+  const worldsDiv = tab.querySelector('.worlds') as HTMLDivElement
+  const template = tab.querySelector('template') as HTMLTemplateElement
   worlds.forEach(world => {
     ui.buildTemplate(template, worldsDiv, [
       { selector: '[data-for=worldId]', value: world.id },
@@ -125,9 +119,9 @@ async function choosePushWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Pr
   })
 
   return new Promise<{ worlds: WorldInfo[], settings: PushSettings }>(resolve => {
-    let button = tab.querySelector('.button') as HTMLElement
+    const button = tab.querySelector('.button') as HTMLElement
     button.addEventListener('click', () => {
-      let ids = Array.from(worldsDiv.querySelectorAll('input'))
+      const ids = Array.from(worldsDiv.querySelectorAll('input'))
         .filter(input => input.checked)
         .map(input => input.value)
 
@@ -136,7 +130,7 @@ async function choosePushWorlds(tab: HTMLDivElement, ui: UIExtensionExports): Pr
         return
       }
 
-      let settings: PushSettings = {
+      const settings: PushSettings = {
         mode: (tab.querySelector('[name=mode]:checked') as HTMLInputElement).value as 'overwrite' | 'append',
       }
 
